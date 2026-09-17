@@ -1,2 +1,0 @@
-# PLESINGR-NOTES
-Notes
