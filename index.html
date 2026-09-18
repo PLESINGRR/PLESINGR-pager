@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chicano Notes - Multi Canvas Cloud Sync</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #313338; color: #dbdee1; 
+            height: 100vh; overflow: hidden; display: flex;
+        }
+
+        .sidebar { 
+            width: 280px; background-color: #2b2d31; 
+            display: flex; flex-direction: column; 
+            border-right: 1px solid #1f2023; z-index: 1000;
+        }
+        .sidebar-header { 
+            padding: 20px; font-weight: bold; font-size: 16px; color: #fff; 
+            border-bottom: 2px solid #1f2023; text-transform: uppercase; letter-spacing: 0.5px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .channel-list { 
+            flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 4px; 
+        }
+        
+        .sidebar-section-title {
+            padding: 10px 8px 4px 8px; font-size: 11px; font-weight: bold; color: #949ba4;
+            text-transform: uppercase; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center;
+            margin-top: 8px; border-top: 1px solid #35373c;
+        }
+        .sidebar-section-title:first-child { border-top: none; margin-top: 0; }
+        .section-title-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .section-actions { display: flex; gap: 2px; align-items: center; }
+        .section-btn { background: none; border: none; color: #949ba4; cursor: pointer; font-size: 11px; padding: 2px; }
+        .section-btn:hover { color: #fff; }
+        .section-btn.delete { color: #f23f43; }
+
+        .channel-item { 
+            padding: 8px 10px; border-radius: 4px; cursor: pointer; 
+            color: #949ba4; font-size: 14px; display: flex; justify-content: space-between; align-items: center;
+            transition: 0.15s; word-break: break-all; margin-left: 8px;
+        }
+        .channel-item:hover { background-color: #35373c; color: #dbdee1; }
+        .channel-item.active { background-color: #404249; color: #fff; font-weight: 500; }
+        .channel-actions { display: flex; gap: 2px; align-items: center; }
+        .channel-btn { background: none; border: none; color: #949ba4; cursor: pointer; font-size: 11px; padding: 2px; }
+        .channel-btn:hover { color: #fff; }
+        .channel-item .delete-btn { color: #f23f43; }
+
+        .add-channel-box { padding: 10px; background-color: #232428; display: flex; flex-direction: column; gap: 6px; }
+        .add-row { display: flex; gap: 4px; }
+        .add-channel-box input { 
+            flex: 1; background-color: #1e1f22; border: none; padding: 8px; border-radius: 4px; color: #fff; outline: none; font-size: 13px;
+        }
+        .add-channel-box button { 
+            background-color: #248046; color: #fff; border: none; padding: 0 10px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px;
+        }
+        .add-channel-box button:hover { background-color: #1a6334; }
+
+        .main-content { 
+            flex: 1; display: flex; flex-direction: column; background-color: #313338; 
+            min-width: 0; position: relative; overflow: hidden;
+        }
+        .chat-header { 
+            height: 60px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between;
+            font-size: 16px; font-weight: bold; color: #fff; border-bottom: 1px solid #1f2023; 
+            background-color: #2b2d31; gap: 10px; flex-shrink: 0; z-index: 1000;
+        }
+        
+        .cloud-settings { display: flex; gap: 6px; align-items: center; font-size: 12px; flex-wrap: wrap; }
+        .cloud-settings input { background: #1e1f22; border: 1px solid #404249; color: #fff; padding: 4px 8px; border-radius: 4px; width: 110px; }
+        .cloud-settings button { background: #5865f2; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .cloud-settings button:hover { background: #4752c4; }
+
+        .tabs-bar {
+            display: flex; align-items: center; background-color: #232428; padding: 0 20px;
+            border-bottom: 1px solid #1f2023; gap: 8px; height: 45px; flex-shrink: 0; z-index: 1000; overflow-x: auto;
+        }
+        .tab-item {
+            padding: 4px 10px; background-color: #2b2d31; color: #949ba4; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; white-space: nowrap; border: 1px solid #1f2023;
+        }
+        .tab-item:hover { background-color: #35373c; color: #dbdee1; }
+        .tab-item.active { background-color: #404249; color: #fff; border-color: #5865f2; }
+        .tab-actions { display: flex; gap: 2px; align-items: center; margin-left: 4px; }
+        .tab-btn { background: none; border: none; color: #949ba4; cursor: pointer; font-size: 11px; padding: 2px; }
+        .tab-btn:hover { color: #fff; }
+        .tab-btn.delete-tab-btn { color: #f23f43; }
+
+        .add-tab-box { display: flex; gap: 4px; align-items: center; margin-left: auto; }
+        .add-tab-box input { background: #1e1f22; border: none; color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 12px; outline: none; width: 120px; }
+        .add-tab-box button { background: #248046; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .add-tab-box button:hover { background: #1a6334; }
+
+        .window-creator-bar {
+            display: flex; gap: 6px; padding: 8px 20px; background-color: #313338; align-items: center; flex-wrap: wrap; flex-shrink: 0; border-bottom: 1px solid #1f2023; z-index: 1000;
+        }
+        .add-window-box { display: flex; gap: 4px; align-items: center; }
+        .add-window-box input { background: #2b2d31; border: 1px solid #1f2023; color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 12px; outline: none; width: 140px; }
+        .add-window-box button { background: #248046; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .add-window-box button:hover { background: #1a6334; }
+
+        .formatting-bar {
+            display: flex; gap: 6px; padding: 6px 20px; background-color: #2b2d31; align-items: center; flex-wrap: wrap; flex-shrink: 0; border-bottom: 1px solid #1f2023; z-index: 1000;
+        }
+        .formatting-bar button {
+            background-color: #313338; color: #dbdee1; border: 1px solid #1f2023; padding: 5px 10px;
+            border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;
+        }
+        .formatting-bar button:hover { background-color: #35373c; color: #fff; border-color: #5865f2; }
+        
+        .color-picker-wrapper {
+            display: flex; align-items: center; gap: 4px; background: #313338; padding: 2px 6px; border-radius: 4px; border: 1px solid #1f2023; font-size: 12px; color: #949ba4; cursor: pointer;
+        }
+        .color-picker-wrapper input[type="color"] {
+            border: none; width: 18px; height: 18px; background: none; cursor: pointer;
+        }
+
+        .canvas-area {
+            flex: 1; 
+            position: relative; 
+            overflow: hidden; 
+            background: radial-gradient(circle, #35383f 1px, transparent 1px); 
+            background-size: 24px 24px; 
+            background-color: #313338;
+            border: 1px solid #1f2023;
+        }
+
+        .floating-window {
+            position: absolute;
+            background-color: #313338;
+            border: 1px solid #1f2023;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            min-width: 250px;
+            min-height: 180px;
+            resize: both;
+            overflow: hidden;
+            z-index: 10;
+        }
+        .floating-window.active-window {
+            border-color: #5865f2;
+            z-index: 10000;
+        }
+
+        .floating-image-window {
+            position: absolute;
+            background-color: #313338;
+            border: 1px solid #1f2023;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            min-width: 200px;
+            min-height: 150px;
+            resize: both;
+            overflow: hidden;
+            z-index: 10;
+        }
+        .floating-image-window.active-window {
+            border-color: #5865f2;
+            z-index: 10000;
+        }
+        .image-window-body {
+            flex: 1;
+            background-color: #2b2d31;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 4px;
+        }
+        .image-window-body img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+
+        .window-header {
+            background-color: #2b2d31;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: grab;
+            border-bottom: 1px solid #1f2023;
+            user-select: none;
+            flex-shrink: 0;
+        }
+        .window-header:active { cursor: grabbing; }
+        .window-title { font-size: 13px; font-weight: bold; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 6px; }
+        .window-controls { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+        .window-btn { background: none; border: none; color: #949ba4; cursor: pointer; font-size: 11px; padding: 2px; }
+        .window-btn:hover { color: #fff; }
+        .window-btn.delete { color: #f23f43; }
+
+        .window-body {
+            flex: 1;
+            padding: 12px;
+            background-color: #383a40;
+            color: #dbdee1;
+            font-size: 14px;
+            outline: none;
+            overflow-y: auto;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .window-body ul, .window-body ol { padding-left: 20px; margin: 5px 0; }
+
+        .share-info {
+            padding: 8px 20px; background-color: #2b2d31; font-size: 11px; color: #949ba4; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; z-index: 1000; border-top: 1px solid #1f2023;
+        }
+        #syncStatus { color: #f0b232; font-weight: bold; }
+
+        .emoji-sidebar {
+            width: 280px; background-color: #2b2d31; border-left: 1px solid #1f2023;
+            display: flex; flex-direction: column; height: 100%;
+            transition: width 0.2s ease, opacity 0.2s ease; flex-shrink: 0; z-index: 1000;
+        }
+        .emoji-sidebar.hidden { width: 0; overflow: hidden; border: none; opacity: 0; }
+        .emoji-sidebar-header {
+            padding: 15px 20px; font-weight: bold; font-size: 14px; color: #fff;
+            border-bottom: 1px solid #1f2023; background-color: #232428; text-transform: uppercase; letter-spacing: 0.5px;
+            display: flex; justify-content: space-between; align-items: center; white-space: nowrap;
+        }
+        .close-emoji-btn { background: none; border: none; color: #949ba4; cursor: pointer; font-size: 16px; font-weight: bold; }
+        .close-emoji-btn:hover { color: #fff; }
+
+        .emoji-sidebar-content {
+            flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; min-width: 280px;
+        }
+        .emoji-category-title { font-size: 11px; color: #949ba4; text-transform: uppercase; font-weight: bold; margin-bottom: 4px; }
+        .emoji-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+        .emoji-btn {
+            background: #313338; border: 1px solid #1f2023; font-size: 20px; cursor: pointer; padding: 6px 0; border-radius: 4px; text-align: center;
+            transition: 0.1s;
+        }
+        .emoji-btn:hover { background: #35373c; border-color: #5865f2; transform: scale(1.1); }
+
+        /* Vlastní stylované modální okno pro hlášky (nezpůsobuje opuštění fullscreenu) */
+        .custom-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center;
+            z-index: 99999; opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+        }
+        .custom-modal-overlay.visible { opacity: 1; pointer-events: auto; }
+        .custom-modal {
+            background: #313338; border: 1px solid #1f2023; border-radius: 8px; width: 380px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6); display: flex; flex-direction: column; overflow: hidden;
+            animation: modalScale 0.2s ease;
+        }
+        @keyframes modalScale {
+            from { transform: scale(0.95); }
+            to { transform: scale(1); }
+        }
+        .custom-modal-header {
+            background: #2b2d31; padding: 12px 16px; font-weight: bold; font-size: 14px; color: #fff;
+            border-bottom: 1px solid #1f2023; display: flex; justify-content: space-between; align-items: center;
+        }
+        .custom-modal-body {
+            padding: 16px; font-size: 14px; color: #dbdee1; line-height: 1.4;
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .custom-modal-body input {
+            background: #1e1f22; border: 1px solid #404249; color: #fff; padding: 8px; border-radius: 4px; font-size: 14px; outline: none; width: 100%;
+        }
+        .custom-modal-footer {
+            padding: 12px 16px; background: #2b2d31; border-top: 1px solid #1f2023; display: flex; justify-content: flex-end; gap: 8px;
+        }
+        .custom-btn {
+            padding: 6px 14px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; border: none;
+        }
+        .custom-btn.cancel { background: #4f545c; color: #fff; }
+        .custom-btn.cancel:hover { background: #5d6269; }
+        .custom-btn.confirm { background: #248046; color: #fff; }
+        .custom-btn.confirm:hover { background: #1a6334; }
+        .custom-btn.danger { background: #f23f43; color: #fff; }
+        .custom-btn.danger:hover { background: #d82c31; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="sidebar-header">PLESINGR Notes</div>
+        <div class="channel-list" id="channelList"></div>
+        <div class="add-channel-box">
+            <div class="add-row">
+                <input type="text" id="newChannelName" placeholder="Nová kategorie..." onkeypress="if(event.key === 'Enter') addChannel()">
+                <button onclick="addChannel()">＋ Kat.</button>
+            </div>
+            <div class="add-row">
+                <input type="text" id="newSectionName" placeholder="Nový nadpis..." onkeypress="if(event.key === 'Enter') addSection()">
+                <button onclick="addSection()" style="background: #4f545c;">＋ Nadpis</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="chat-header">
+            <span id="currentChannelTitle"># vyber-složku</span>
+            <div class="cloud-settings">
+                <input type="text" id="binIdInput" placeholder="JSONBin ID">
+                <input type="password" id="apiKeyInput" placeholder="API Key">
+                <button onclick="saveCloudConfig()">Uložit klíče</button>
+                <button onclick="fetchFromCloud()" style="background: #248046;">Stáhnout z cloudu</button>
+                <button onclick="exportBackup()" style="background: #6c757d;" title="Stáhnout zálohu do souboru">💾 Záloha</button>
+                <button onclick="document.getElementById('importFile').click()" style="background: #6c757d;" title="Nahrát zálohu ze souboru">📂 Nahrát</button>
+                <button onclick="toggleEmojiSidebar()" style="background: #4f545c;" title="Zobrazit/skrýt panel emotů">😊 Emoty</button>
+                <button onclick="toggleFullScreen()" style="background: #f0b232; color: #000;" title="Celá obrazovka">🖥️ Fullscreen</button>
+                <input type="file" id="importFile" style="display: none;" accept=".json" onchange="importBackup(event)">
+            </div>
+        </div>
+        
+        <div class="tabs-bar" id="tabsBar">
+            <div class="add-tab-box">
+                <input type="text" id="newCanvasTabName" placeholder="Nové plátno..." onkeypress="if(event.key === 'Enter') addCanvasTab()">
+                <button onclick="addCanvasTab()">＋ Plátno</button>
+            </div>
+        </div>
+
+        <div class="window-creator-bar">
+            <div class="add-window-box">
+                <input type="text" id="newWindowName" placeholder="Název okna..." onkeypress="if(event.key === 'Enter') addFloatingWindow()">
+                <button onclick="addFloatingWindow()">＋ Přidat okno na plátno</button>
+            </div>
+            <button onclick="document.getElementById('imageUploadInput').click()" style="background: #5865f2; color: #fff; border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-left: 10px;" title="Vložit fotku jako plovoucí objekt">🖼️ Vložit fotku na plátno</button>
+            <input type="file" id="imageUploadInput" style="display: none;" accept="image/*" onchange="handleImageUpload(event)">
+        </div>
+
+        <div class="formatting-bar">
+            <button onclick="formatText('bold')" title="Tučně"><b>B</b></button>
+            <button onclick="formatText('italic')" title="Kurzíva"><i>I</i></button>
+            <button onclick="formatText('underline')" title="Podtrženo"><u>U</u></button>
+            <button onclick="formatText('strikeThrough')" title="Přeškrtnuto"><s>S</s></button>
+            
+            <button onclick="changeFontSize('12px')" title="Malý text / emoji">A-</button>
+            <button onclick="changeFontSize('15px')" title="Normální text / emoji">A</button>
+            <button onclick="changeFontSize('22px')" title="Velký text / emoji">A+</button>
+            <button onclick="changeFontSize('32px')" title="Obří text / emoji">A++</button>
+
+            <button onclick="formatText('insertUnorderedList')" title="Odrážky (tečky)">• Odrážky</button>
+
+            <label class="color-picker-wrapper" title="Barva textu / emoji">
+                Barva: <input type="color" id="textColorPicker" onchange="formatText('foreColor', this.value)" value="#ffffff">
+            </label>
+        </div>
+
+        <div class="canvas-area" id="canvasArea"></div>
+
+        <div class="share-info">
+            <span id="syncStatus">Cloud: Nenastaveno (vyplň nahoře údaje)</span>
+        </div>
+    </div>
+
+    <div class="emoji-sidebar" id="emojiSidebar">
+        <div class="emoji-sidebar-header">
+            <span>😊 Panel emotů</span>
+            <button class="close-emoji-btn" onclick="toggleEmojiSidebar()" title="Zavřít panel">✕</button>
+        </div>
+        <div class="emoji-sidebar-content">
+            <div class="emoji-category-title">📄 RP Papíry & Dokumenty</div>
+            <div class="emoji-grid">
+                <button class="emoji-btn" onclick="insertEmoji('📜')">📜</button>
+                <button class="emoji-btn" onclick="insertEmoji('📄')">📄</button>
+                <button class="emoji-btn" onclick="insertEmoji('📃')">📃</button>
+                <button class="emoji-btn" onclick="insertEmoji('📑')">📑</button>
+                <button class="emoji-btn" onclick="insertEmoji('📖')">📖</button>
+                <button class="emoji-btn" onclick="insertEmoji('📘')">📘</button>
+                <button class="emoji-btn" onclick="insertEmoji('📙')">📙</button>
+                <button class="emoji-btn" onclick="insertEmoji('📔')">📔</button>
+            </div>
+
+            <div class="emoji-category-title">💊 RP & Drogy</div>
+            <div class="emoji-grid">
+                <button class="emoji-btn" onclick="insertEmoji('🌿')">🌿</button>
+                <button class="emoji-btn" onclick="insertEmoji('🍃')">🍃</button>
+                <button class="emoji-btn" onclick="insertEmoji('💊')">💊</button>
+                <button class="emoji-btn" onclick="insertEmoji('💉')">💉</button>
+                <button class="emoji-btn" onclick="insertEmoji('🧪')">🧪</button>
+                <button class="emoji-btn" onclick="insertEmoji('🧊')">🧊</button>
+                <button class="emoji-btn" onclick="insertEmoji('🚬')">🚬</button>
+                <button class="emoji-btn" onclick="insertEmoji('🥃')">🥃</button>
+            </div>
+
+            <div class="emoji-category-title">Vozidla & Doprava</div>
+            <div class="emoji-grid">
+                <button class="emoji-btn" onclick="insertEmoji('🚗')">🚗</button>
+                <button class="emoji-btn" onclick="insertEmoji('🚙')">🚙</button>
+                <button class="emoji-btn" onclick="insertEmoji('🏎️')">🏎️</button>
+                <button class="emoji-btn" onclick="insertEmoji('🚕')">🚕</button>
+                <button class="emoji-btn" onclick="insertEmoji('🏍️')">🏍️</button>
+                <button class="emoji-btn" onclick="insertEmoji('✈️')">✈️</button>
+                <button class="emoji-btn" onclick="insertEmoji('🚨')">🚨</button>
+                <button class="emoji-btn" onclick="insertEmoji('🛞')">🛞</button>
+            </div>
+
+            <div class="emoji-category-title">Nástroje & Garáž</div>
+            <div class="emoji-grid">
+                <button class="emoji-btn" onclick="insertEmoji('🔧')">🔧</button>
+                <button class="emoji-btn" onclick="insertEmoji('🔨')">🔨</button>
+                <button class="emoji-btn" onclick="insertEmoji('⚙️')">⚙️</button>
+                <button class="emoji-btn" onclick="insertEmoji('🔑')">🔑</button>
+                <button class="emoji-btn" onclick="insertEmoji('🧰')">🧰</button>
+                <button class="emoji-btn" onclick="insertEmoji('💡')">💡</button>
+                <button class="emoji-btn" onclick="insertEmoji('⭐')">⭐</button>
+                <button class="emoji-btn" onclick="insertEmoji('🔥')">🔥</button>
+            </div>
+
+            <div class="emoji-category-title">Peníze & Předměty</div>
+            <div class="emoji-grid">
+                <button class="emoji-btn" onclick="insertEmoji('💰')">💰</button>
+                <button class="emoji-btn" onclick="insertEmoji('💵')">💵</button>
+                <button class="emoji-btn" onclick="insertEmoji('💳')">💳</button>
+                <button class="emoji-btn" onclick="insertEmoji('📦')">📦</button>
+                <button class="emoji-btn" onclick="insertEmoji('💻')">💻</button>
+                <button class="emoji-btn" onclick="insertEmoji('📱')">📱</button>
+                <button class="emoji-btn" onclick="insertEmoji('⌚')">⌚</button>
+                <button class="emoji-btn" onclick="insertEmoji('🏆')">🏆</button>
+            </div>
+
+            <div class="emoji-category-title">Smajlíci & Reakce</div>
+            <div class="emoji-grid">
+                <button class="emoji-btn" onclick="insertEmoji('😀')">😀</button>
+                <button class="emoji-btn" onclick="insertEmoji('😎')">😎</button>
+                <button class="emoji-btn" onclick="insertEmoji('🤔')">🤔</button>
+                <button class="emoji-btn" onclick="insertEmoji('👍')">👍</button>
+                <button class="emoji-btn" onclick="insertEmoji('✅')">✅</button>
+                <button class="emoji-btn" onclick="insertEmoji('❌')">❌</button>
+                <button class="emoji-btn" onclick="insertEmoji('⚠️')">⚠️</button>
+                <button class="emoji-btn" onclick="insertEmoji('💀')">💀</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vlastní modální okno pro aplikaci -->
+    <div class="custom-modal-overlay" id="customModalOverlay">
+        <div class="custom-modal" id="customModalBox">
+            <div class="custom-modal-header" id="customModalTitle">Upozornění</div>
+            <div class="custom-modal-body" id="customModalBody">
+                <span id="customModalText">Text zprávy</span>
+            </div>
+            <div class="custom-modal-footer" id="customModalFooter">
+                <!-- Tlačítka se generují dynamicky -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let appStructure = [
+            { type: "section", name: "Obecné" },
+            { type: "channel", name: "obecne" }
+        ];
+
+        let appData = {
+            "obecne": {
+                "prehled": {
+                    "vitr": { type: "text", title: "Vítejte", content: "Vítejte v Chicano Notes!", x: 50, y: 50, width: "320px", height: "220px" }
+                }
+            }
+        };
+
+        let activeChannel = "obecne";
+        let activeCanvasTab = "prehled";
+        let activeEditorElement = null;
+
+        let binId = localStorage.getItem("chicano_bin_id") || "";
+        let apiKey = localStorage.getItem("chicano_api_key") || "";
+
+        window.onload = function() {
+            document.getElementById('binIdInput').value = binId;
+            document.getElementById('apiKeyInput').value = apiKey;
+
+            if (binId && apiKey) {
+                fetchFromCloud();
+            } else {
+                renderApp();
+            }
+        };
+
+        // Vlastní náhrada za alert / confirm / prompt, která nevypíná fullscreen
+        function showCustomAlert(title, message) {
+            return new Promise((resolve) => {
+                document.getElementById('customModalTitle').innerText = title;
+                document.getElementById('customModalText').innerText = message;
+                document.getElementById('customModalBody').innerHTML = `<span id="customModalText">${message}</span>`;
+                
+                const footer = document.getElementById('customModalFooter');
+                footer.innerHTML = `<button class="custom-btn confirm" id="modalOkBtn">OK</button>`;
+                
+                const overlay = document.getElementById('customModalOverlay');
+                overlay.classList.add('visible');
+
+                document.getElementById('modalOkBtn').onclick = () => {
+                    overlay.classList.remove('visible');
+                    resolve();
+                };
+            });
+        }
+
+        function showCustomConfirm(title, message) {
+            return new Promise((resolve) => {
+                document.getElementById('customModalTitle').innerText = title;
+                document.getElementById('customModalBody').innerHTML = `<span id="customModalText">${message}</span>`;
+                
+                const footer = document.getElementById('customModalFooter');
+                footer.innerHTML = `
+                    <button class="custom-btn cancel" id="modalCancelBtn">Zrušit</button>
+                    <button class="custom-btn danger" id="modalConfirmBtn">Potvrdit</button>
+                `;
+                
+                const overlay = document.getElementById('customModalOverlay');
+                overlay.classList.add('visible');
+
+                document.getElementById('modalCancelBtn').onclick = () => {
+                    overlay.classList.remove('visible');
+                    resolve(false);
+                };
+                document.getElementById('modalConfirmBtn').onclick = () => {
+                    overlay.classList.remove('visible');
+                    resolve(true);
+                };
+            });
+        }
+
+        function showCustomPrompt(title, message, defaultValue = "") {
+            return new Promise((resolve) => {
+                document.getElementById('customModalTitle').innerText = title;
+                document.getElementById('customModalBody').innerHTML = `
+                    <span>${message}</span>
+                    <input type="text" id="customPromptInput" value="${defaultValue}">
+                `;
+                
+                const footer = document.getElementById('customModalFooter');
+                footer.innerHTML = `
+                    <button class="custom-btn cancel" id="modalCancelBtn">Zrušit</button>
+                    <button class="custom-btn confirm" id="modalConfirmBtn">OK</button>
+                `;
+                
+                const overlay = document.getElementById('customModalOverlay');
+                overlay.classList.add('visible');
+
+                const inputEl = document.getElementById('customPromptInput');
+                inputEl.focus();
+                inputEl.select();
+                
+                inputEl.onkeydown = (e) => {
+                    if (e.key === 'Enter') {
+                        document.getElementById('modalConfirmBtn').click();
+                    }
+                };
+
+                document.getElementById('modalCancelBtn').onclick = () => {
+                    overlay.classList.remove('visible');
+                    resolve(null);
+                };
+                document.getElementById('modalConfirmBtn').onclick = () => {
+                    let val = inputEl.value;
+                    overlay.classList.remove('visible');
+                    resolve(val);
+                };
+            });
+        }
+
+        function toggleEmojiSidebar() {
+            document.getElementById('emojiSidebar').classList.toggle('hidden');
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.warn(`Fullscreen nebyl povolen: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen().catch(err => {
+                        console.warn(`Ukončení fullscreenu selhalo: ${err.message}`);
+                    });
+                }
+            }
+        }
+
+        async function insertEmoji(emoji) {
+            if (!activeEditorElement || !document.contains(activeEditorElement)) {
+                await showCustomAlert("Upozornění", "Není vybráno žádné textové okno! Klikněte nejprve do okna, kam chcete emoji vložit.");
+                return;
+            }
+
+            activeEditorElement.focus();
+            
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                if (activeEditorElement.contains(range.commonAncestorContainer)) {
+                    range.deleteContents();
+                    range.insertNode(document.createTextNode(emoji));
+                    range.collapse(false);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                } else {
+                    activeEditorElement.innerHTML += emoji;
+                }
+            } else {
+                activeEditorElement.innerHTML += emoji;
+            }
+            triggerUpdate(activeEditorElement.dataset.windowName);
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 800;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > MAX_WIDTH) {
+                        height = Math.round((height * MAX_WIDTH) / width);
+                        width = MAX_WIDTH;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+                    if (!appData[activeChannel]) appData[activeChannel] = {};
+                    if (!appData[activeChannel][activeCanvasTab]) appData[activeChannel][activeCanvasTab] = {};
+
+                    let winKey = "fotka_" + Date.now();
+
+                    appData[activeChannel][activeCanvasTab][winKey] = {
+                        type: "image",
+                        title: "Obrázek",
+                        content: dataUrl,
+                        x: 120,
+                        y: 120,
+                        width: "300px",
+                        height: "250px"
+                    };
+
+                    renderApp();
+                    saveToCloud();
+                    event.target.value = "";
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function saveCloudConfig() {
+            binId = document.getElementById('binIdInput').value.trim();
+            apiKey = document.getElementById('apiKeyInput').value.trim();
+            localStorage.setItem("chicano_bin_id", binId);
+            localStorage.setItem("chicano_api_key", apiKey);
+            await showCustomAlert("Úspěch", "Klíče uloženy!");
+            fetchFromCloud();
+        }
+
+        async function fetchFromCloud() {
+            if (!binId || !apiKey) {
+                await showCustomAlert("Upozornění", "Nejprve vyplň Bin ID a API Key!");
+                return;
+            }
+            document.getElementById('syncStatus').innerText = "Stahuji z cloudu...";
+            try {
+                const responseUrl = `https://api.jsonbin.io/v3/b/${binId}/latest`;
+                const res = await fetch(responseUrl, {
+                    headers: { 'X-Master-Key': apiKey }
+                });
+                if (!res.ok) throw new Error("Chyba při stahování");
+                const resData = await res.json();
+                
+                let rawData = resData.record;
+                
+                if (rawData._appStructure) {
+                    appStructure = rawData._appStructure;
+                    delete rawData._appStructure;
+                }
+                appData = rawData;
+                
+                let existingChannels = new Set();
+                appStructure.forEach(item => { if(item.type === 'channel') existingChannels.add(item.name); });
+                
+                Object.keys(appData).forEach(ch => {
+                    if (!existingChannels.has(ch)) {
+                        appStructure.push({ type: 'channel', name: ch });
+                    }
+                });
+
+                if (appStructure.length > 0) {
+                    let firstChannelItem = appStructure.find(i => i.type === 'channel');
+                    if (firstChannelItem) activeChannel = firstChannelItem.name;
+                }
+
+                if (appData[activeChannel]) {
+                    const canvasTabs = Object.keys(appData[activeChannel]);
+                    if (canvasTabs.length > 0 && !appData[activeChannel][activeCanvasTab]) {
+                        activeCanvasTab = canvasTabs[0];
+                    }
+                }
+                
+                activeEditorElement = null;
+                renderApp();
+                document.getElementById('syncStatus').innerText = "Cloud: Synchronizováno ✓";
+            } catch (e) {
+                console.error(e);
+                document.getElementById('syncStatus').innerText = "Cloud: Chyba připojení ❌";
+            }
+        }
+
+        let saveTimeout;
+        function saveToCloud() {
+            if (!binId || !apiKey) return;
+            document.getElementById('syncStatus').innerText = "Ukládám do cloudu...";
+            
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(async () => {
+                try {
+                    let saveData = { ...appData, _appStructure: appStructure };
+                    const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Master-Key': apiKey
+                        },
+                        body: JSON.stringify(saveData)
+                    });
+                    if (!response.ok) throw new Error("Chyba při uložení");
+                    document.getElementById('syncStatus').innerText = "Cloud: Uloženo ✓";
+                } catch (e) {
+                    console.error(e);
+                    document.getElementById('syncStatus').innerText = "Cloud: Chyba při ukládání ❌";
+                }
+            }, 1000);
+        }
+
+        function exportBackup() {
+            let exportObj = { ...appData, _appStructure: appStructure };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "chicano_notes_backup.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importBackup(event) {
+            const fileReader = new FileReader();
+            if (event.target.files[0]) {
+                fileReader.readAsText(event.target.files[0], "UTF-8");
+                fileReader.onload = async (e) => {
+                    try {
+                        let parsed = JSON.parse(e.target.result);
+                        if (parsed._appStructure) {
+                            appStructure = parsed._appStructure;
+                            delete parsed._appStructure;
+                        }
+                        appData = parsed;
+
+                        let firstChannel = appStructure.find(i => i.type === 'channel');
+                        if (firstChannel) activeChannel = firstChannel.name;
+
+                        if (appData[activeChannel]) {
+                            const tabs = Object.keys(appData[activeChannel]);
+                            if (tabs.length > 0) activeCanvasTab = tabs[0];
+                        }
+                        
+                        activeEditorElement = null;
+                        renderApp();
+                        saveToCloud();
+                        await showCustomAlert("Úspěch", "Záloha byla úspěšně nahrána!");
+                    } catch (err) {
+                        await showCustomAlert("Chyba", "Neplatný JSON soubor!");
+                    }
+                };
+            }
+        }
+
+        async function formatText(command, value = null) {
+            if (!activeEditorElement || !document.contains(activeEditorElement)) {
+                await showCustomAlert("Upozornění", "Není vybráno žádné textové okno! Klikněte nejprve do okna, které chcete formátovat.");
+                return;
+            }
+            document.execCommand(command, false, value);
+            activeEditorElement.focus();
+            triggerUpdate(activeEditorElement.dataset.windowName);
+        }
+
+        async function changeFontSize(size) {
+            if (!activeEditorElement || !document.contains(activeEditorElement)) {
+                await showCustomAlert("Upozornění", "Není vybráno žádné textové okno!");
+                return;
+            }
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+            
+            const range = selection.getRangeAt(0);
+            if (range.collapsed) {
+                await showCustomAlert("Upozornění", "Nejprve označ myší text nebo emoji, které chceš zvětšit!");
+                return;
+            }
+
+            const span = document.createElement('span');
+            span.style.fontSize = size;
+            span.appendChild(range.extractContents());
+            range.insertNode(span);
+            
+            activeEditorElement.focus();
+            triggerUpdate(activeEditorElement.dataset.windowName);
+        }
+
+        async function addChannel() {
+            const nameInput = document.getElementById('newChannelName');
+            let rawName = nameInput.value.trim();
+            let name = rawName.toLowerCase().replace(/\s+/g, '-');
+            if (!name) return;
+            if (appData[name]) {
+                await showCustomAlert("Upozornění", "Kategorie s tímto názvem již existuje!");
+                return;
+            }
+            appData[name] = { "prehled": {} };
+            appStructure.push({ type: "channel", name: name });
+            activeChannel = name;
+            activeCanvasTab = "prehled";
+            activeEditorElement = null;
+            nameInput.value = "";
+            renderApp();
+            saveToCloud();
+        }
+
+        function addSection() {
+            const nameInput = document.getElementById('newSectionName');
+            let name = nameInput.value.trim();
+            if (!name) return;
+            
+            appStructure.push({ type: "section", name: name });
+            nameInput.value = "";
+            renderApp();
+            saveToCloud();
+        }
+
+        function moveItem(index, direction) {
+            let targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= appStructure.length) return;
+            
+            let temp = appStructure[index];
+            appStructure[index] = appStructure[targetIndex];
+            appStructure[targetIndex] = temp;
+            
+            renderApp();
+            saveToCloud();
+        }
+
+        async function renameItem(index) {
+            let item = appStructure[index];
+            let currentName = item.name;
+            let newName = await showCustomPrompt("Přejmenování", "Zadejte nový název:", currentName);
+            if (!newName || newName.trim() === "") return;
+            newName = newName.trim();
+
+            if (item.type === 'section') {
+                item.name = newName;
+            } else if (item.type === 'channel') {
+                let newKey = newName.toLowerCase().replace(/\s+/g, '-');
+                if (newKey !== currentName && appData[newKey]) {
+                    await showCustomAlert("Upozornění", "Kategorie s tímto ID již existuje!");
+                    return;
+                }
+                if (newKey !== currentName) {
+                    appData[newKey] = appData[currentName];
+                    delete appData[currentName];
+                    if (activeChannel === currentName) activeChannel = newKey;
+                }
+                item.name = newKey;
+            }
+            renderApp();
+            saveToCloud();
+        }
+
+        async function deleteSidebarItem(index) {
+            let item = appStructure[index];
+            if (item.type === 'channel') {
+                if (Object.keys(appData).length <= 1) {
+                    await showCustomAlert("Upozornění", "Nemůžeš smazat poslední kategorii!");
+                    return;
+                }
+                let confirmed = await showCustomConfirm("Smazat kategorii", `Opravdu chcete smazat kategorii "${item.name}"?`);
+                if (!confirmed) return;
+                
+                delete appData[item.name];
+                appStructure.splice(index, 1);
+                
+                let firstChannel = appStructure.find(i => i.type === 'channel');
+                if (firstChannel) activeChannel = firstChannel.name;
+            } else {
+                let confirmed = await showCustomConfirm("Smazat nadpis", `Opravdu chcete smazat nadpis "${item.name}"?`);
+                if (!confirmed) return;
+                appStructure.splice(index, 1);
+            }
+            activeEditorElement = null;
+            renderApp();
+            saveToCloud();
+        }
+
+        function selectChannel(name) {
+            activeChannel = name;
+            const canvasTabs = Object.keys(appData[activeChannel] || {});
+            if (canvasTabs.length > 0) {
+                activeCanvasTab = canvasTabs[0];
+            } else {
+                appData[activeChannel] = { "prehled": {} };
+                activeCanvasTab = "prehled";
+            }
+            activeEditorElement = null;
+            renderApp();
+        }
+
+        async function addCanvasTab() {
+            const nameInput = document.getElementById('newCanvasTabName');
+            let name = nameInput.value.trim().toLowerCase().replace(/\s+/g, '-');
+            if (!name) return;
+            if (!appData[activeChannel]) appData[activeChannel] = {};
+            if (appData[activeChannel][name]) {
+                await showCustomAlert("Upozornění", "Plátno s tímto názvem již v této kategorii existuje!");
+                return;
+            }
+            appData[activeChannel][name] = {};
+            activeCanvasTab = name;
+            activeEditorElement = null;
+            nameInput.value = "";
+            renderApp();
+            saveToCloud();
+        }
+
+        function selectCanvasTab(name) {
+            activeCanvasTab = name;
+            activeEditorElement = null;
+            renderApp();
+        }
+
+        async function renameCanvasTab(oldName, event) {
+            event.stopPropagation();
+            let newName = await showCustomPrompt("Přejmenovat plátno", "Zadejte nový název plátna:", oldName);
+            if (!newName || newName.trim() === "") return;
+            newName = newName.trim().toLowerCase().replace(/\s+/g, '-');
+
+            if (newName === oldName) return;
+            if (appData[activeChannel][newName]) {
+                await showCustomAlert("Upozornění", "Plátno s tímto názvem již v kategorii existuje!");
+                return;
+            }
+
+            let oldObj = appData[activeChannel];
+            let newObj = {};
+            for (let key in oldObj) {
+                if (key === oldName) {
+                    newObj[newName] = oldObj[oldName];
+                } else {
+                    newObj[key] = oldObj[key];
+                }
+            }
+            appData[activeChannel] = newObj;
+            if (activeCanvasTab === oldName) activeCanvasTab = newName;
+
+            activeEditorElement = null;
+            renderApp();
+            saveToCloud();
+        }
+
+        function moveCanvasTab(tabName, direction, event) {
+            event.stopPropagation();
+            let keys = Object.keys(appData[activeChannel]);
+            let index = keys.indexOf(tabName);
+            let targetIndex = index + direction;
+
+            if (targetIndex < 0 || targetIndex >= keys.length) return;
+
+            let temp = keys[index];
+            keys[index] = keys[targetIndex];
+            keys[targetIndex] = temp;
+
+            let oldObj = appData[activeChannel];
+            let newObj = {};
+            keys.forEach(k => {
+                newObj[k] = oldObj[k];
+            });
+
+            appData[activeChannel] = newObj;
+            renderApp();
+            saveToCloud();
+        }
+
+        async function deleteCanvasTab(name, event) {
+            event.stopPropagation();
+            const tabs = Object.keys(appData[activeChannel]);
+            if (tabs.length <= 1) {
+                await showCustomAlert("Upozornění", "Nemůžeš smazat poslední plátno v kategorii!");
+                return;
+            }
+            let confirmed = await showCustomConfirm("Smazat plátno", `Opravdu chcete smazat plátno "${name}"?`);
+            if (confirmed) {
+                delete appData[activeChannel][name];
+                const remainingTabs = Object.keys(appData[activeChannel]);
+                activeCanvasTab = remainingTabs[0];
+                activeEditorElement = null;
+                renderApp();
+                saveToCloud();
+            }
+        }
+
+        function addFloatingWindow() {
+            const nameInput = document.getElementById('newWindowName');
+            let name = nameInput.value.trim();
+            if (!name) return;
+            
+            let winKey = "win_" + Date.now();
+            
+            if (!appData[activeChannel]) appData[activeChannel] = {};
+            if (!appData[activeChannel][activeCanvasTab]) appData[activeChannel][activeCanvasTab] = {};
+
+            appData[activeChannel][activeCanvasTab][winKey] = {
+                type: "text",
+                title: name,
+                content: "",
+                x: 100 + Math.random() * 50,
+                y: 100 + Math.random() * 50,
+                width: "280px",
+                height: "200px"
+            };
+
+            nameInput.value = "";
+            renderApp();
+            saveToCloud();
+        }
+
+        async function renameWindow(winKey, event) {
+            event.stopPropagation();
+            let winData = appData[activeChannel][activeCanvasTab][winKey];
+            let currentTitle = winData.title || "Okno";
+            let newTitle = await showCustomPrompt("Přejmenovat okno", "Zadejte nový název okna:", currentTitle);
+            if (!newTitle || newTitle.trim() === "") return;
+            
+            winData.title = newTitle.trim();
+            renderApp();
+            saveToCloud();
+        }
+
+        async function deleteWindow(winKey) {
+            let confirmed = await showCustomConfirm("Smazat okno", "Opravdu chcete smazat toto okno?");
+            if (!confirmed) return;
+            delete appData[activeChannel][activeCanvasTab][winKey];
+            activeEditorElement = null;
+            renderApp();
+            saveToCloud();
+        }
+
+        function triggerUpdate(winKey) {
+            const el = document.querySelector(`[data-window-name="${winKey}"] .window-body`);
+            if (el) {
+                if (!appData[activeChannel]) appData[activeChannel] = {};
+                if (!appData[activeChannel][activeCanvasTab]) appData[activeChannel][activeCanvasTab] = {};
+                if (!appData[activeChannel][activeCanvasTab][winKey]) {
+                    appData[activeChannel][activeCanvasTab][winKey] = { type: "text", title: "Okno", x: 50, y: 50, width: "280px", height: "200px" };
+                }
+                appData[activeChannel][activeCanvasTab][winKey].content = el.innerHTML;
+                saveToCloud();
+            }
+        }
+
+        function renderApp() {
+            const listEl = document.getElementById('channelList');
+            listEl.innerHTML = "";
+
+            appStructure.forEach((item, index) => {
+                if (item.type === 'section') {
+                    let secDiv = document.createElement('div');
+                    secDiv.className = 'sidebar-section-title';
+                    secDiv.innerHTML = `
+                        <span class="section-title-text">${item.name}</span>
+                        <div class="section-actions">
+                            <button class="section-btn" onclick="moveItem(${index}, -1)" title="Posunout nahoru">▲</button>
+                            <button class="section-btn" onclick="moveItem(${index}, 1)" title="Posunout dolů">▼</button>
+                            <button class="section-btn" onclick="renameItem(${index})" title="Přejmenovat">✏️</button>
+                            <button class="section-btn delete" onclick="deleteSidebarItem(${index})" title="Smazat">✕</button>
+                        </div>
+                    `;
+                    listEl.appendChild(secDiv);
+                } else if (item.type === 'channel') {
+                    let chName = item.name;
+                    let itemDiv = document.createElement('div');
+                    itemDiv.className = `channel-item ${chName === activeChannel ? 'active' : ''}`;
+                    itemDiv.innerHTML = `
+                        <span># ${chName}</span>
+                        <div class="channel-actions">
+                            <button class="channel-btn" onclick="moveItem(${index}, -1); event.stopPropagation();" title="Nahoru">▲</button>
+                            <button class="channel-btn" onclick="moveItem(${index}, 1); event.stopPropagation();" title="Dolů">▼</button>
+                            <button class="channel-btn" onclick="renameItem(${index}); event.stopPropagation();" title="Přejmenovat">✏️</button>
+                            <button class="channel-btn delete-btn" onclick="deleteSidebarItem(${index}); event.stopPropagation();" title="Smazat">✕</button>
+                        </div>
+                    `;
+                    itemDiv.onclick = () => selectChannel(chName);
+                    listEl.appendChild(itemDiv);
+                }
+            });
+
+            document.getElementById('currentChannelTitle').innerText = `# ${activeChannel}`;
+
+            const tabsBar = document.getElementById('tabsBar');
+            tabsBar.innerHTML = `
+                <div class="add-tab-box">
+                    <input type="text" id="newCanvasTabName" placeholder="Nové plátno..." onkeypress="if(event.key === 'Enter') addCanvasTab()">
+                    <button onclick="addCanvasTab()">＋ Plátno</button>
+                </div>
+            `;
+
+            if (appData[activeChannel]) {
+                const canvasTabs = Object.keys(appData[activeChannel]);
+                for (let i = canvasTabs.length - 1; i >= 0; i--) {
+                    let tabName = canvasTabs[i];
+                    let tabDiv = document.createElement('div');
+                    tabDiv.className = `tab-item ${tabName === activeCanvasTab ? 'active' : ''}`;
+                    tabDiv.innerHTML = `
+                        <span>📄 ${tabName}</span>
+                        <div class="tab-actions">
+                            <button class="tab-btn" onclick="moveCanvasTab('${tabName}', -1, event)" title="Posunout doleva">◄</button>
+                            <button class="tab-btn" onclick="moveCanvasTab('${tabName}', 1, event)" title="Posunout doprava">►</button>
+                            <button class="tab-btn" onclick="renameCanvasTab('${tabName}', event)" title="Přejmenovat plátno">✏️</button>
+                            <button class="tab-btn delete-tab-btn" onclick="deleteCanvasTab('${tabName}', event)" title="Smazat plátno">✕</button>
+                        </div>
+                    `;
+                    tabDiv.onclick = () => selectCanvasTab(tabName);
+                    tabsBar.insertBefore(tabDiv, tabsBar.firstChild);
+                }
+            }
+
+            const canvasArea = document.getElementById('canvasArea');
+            canvasArea.innerHTML = "";
+
+            if (appData[activeChannel] && appData[activeChannel][activeCanvasTab]) {
+                const windows = appData[activeChannel][activeCanvasTab];
+                for (let winKey in windows) {
+                    let winData = windows[winKey];
+                    let winTitle = winData.title || "Okno";
+
+                    if (winData.type === "image") {
+                        let winEl = document.createElement('div');
+                        winEl.className = 'floating-image-window';
+                        winEl.style.left = (winData.x || 50) + "px";
+                        winEl.style.top = (winData.y || 50) + "px";
+                        winEl.style.width = winData.width || "300px";
+                        winEl.style.height = winData.height || "250px";
+                        winEl.dataset.windowName = winKey;
+
+                        winEl.innerHTML = `
+                            <div class="window-header">
+                                <span class="window-title" title="${winTitle}">🖼️ ${winTitle}</span>
+                                <div class="window-controls">
+                                    <button class="window-btn" onclick="renameWindow('${winKey}', event)" title="Přejmenovat okno">✏️</button>
+                                    <button class="window-btn delete" onclick="deleteWindow('${winKey}')" title="Smazat okno">✕</button>
+                                </div>
+                            </div>
+                            <div class="image-window-body">
+                                <img src="${winData.content}" alt="Obrázek">
+                            </div>
+                        `;
+                        makeDraggableAndResizable(winEl, winKey);
+                        canvasArea.appendChild(winEl);
+                    } else {
+                        let winEl = document.createElement('div');
+                        winEl.className = 'floating-window';
+                        winEl.style.left = (winData.x || 50) + "px";
+                        winEl.style.top = (winData.y || 50) + "px";
+                        winEl.style.width = winData.width || "280px";
+                        winEl.style.height = winData.height || "200px";
+                        winEl.dataset.windowName = winKey;
+
+                        winEl.innerHTML = `
+                            <div class="window-header">
+                                <span class="window-title" title="${winTitle}">📌 ${winTitle}</span>
+                                <div class="window-controls">
+                                    <button class="window-btn" onclick="renameWindow('${winKey}', event)" title="Přejmenovat okno">✏️</button>
+                                    <button class="window-btn delete" onclick="deleteWindow('${winKey}')" title="Smazat okno">✕</button>
+                                </div>
+                            </div>
+                            <div class="window-body" contenteditable="true" data-window-name="${winKey}" oninput="triggerUpdate('${winKey}')" onfocus="activeEditorElement = this">${winData.content || ""}</div>
+                        `;
+                        makeDraggableAndResizable(winEl, winKey);
+                        canvasArea.appendChild(winEl);
+                    }
+                }
+            }
+        }
+
+        function makeDraggableAndResizable(elmnt, winKey) {
+            let header = elmnt.querySelector('.window-header');
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+            header.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                if (e.target.tagName === 'BUTTON') return;
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+
+                document.querySelectorAll('.floating-window, .floating-image-window').forEach(w => w.classList.remove('active-window'));
+                elmnt.classList.add('active-window');
+            }
+
+            function elementDrag(e) {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+
+                let newTop = elmnt.offsetTop - pos2;
+                let newLeft = elmnt.offsetLeft - pos1;
+
+                const canvasArea = document.getElementById('canvasArea');
+                const canvasRect = canvasArea.getBoundingClientRect();
+                
+                const maxX = canvasRect.width - elmnt.offsetWidth;
+                const maxY = canvasRect.height - elmnt.offsetHeight;
+
+                if (newLeft < 4) newLeft = 4;
+                if (newTop < 4) newTop = 4;
+
+                if (newLeft > maxX - 4) newLeft = Math.max(4, maxX - 4);
+                if (newTop > maxY - 4) newTop = Math.max(4, maxY - 4);
+
+                elmnt.style.top = newTop + "px";
+                elmnt.style.left = newLeft + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+
+                if (appData[activeChannel] && appData[activeChannel][activeCanvasTab] && appData[activeChannel][activeCanvasTab][winKey]) {
+                    appData[activeChannel][activeCanvasTab][winKey].x = elmnt.offsetLeft;
+                    appData[activeChannel][activeCanvasTab][winKey].y = elmnt.offsetTop;
+                    saveToCloud();
+                }
+            }
+
+            elmnt.addEventListener('mousedown', () => {
+                document.querySelectorAll('.floating-window, .floating-image-window').forEach(w => w.classList.remove('active-window'));
+                elmnt.classList.add('active-window');
+            });
+
+            const resizeObserver = new ResizeObserver(() => {
+                if (appData[activeChannel] && appData[activeChannel][activeCanvasTab] && appData[activeChannel][activeCanvasTab][winKey]) {
+                    appData[activeChannel][activeCanvasTab][winKey].width = elmnt.style.width;
+                    appData[activeChannel][activeCanvasTab][winKey].height = elmnt.style.height;
+                    saveToCloud();
+                }
+            });
+            resizeObserver.observe(elmnt);
+        }
+    </script>
+</body>
+</html>
