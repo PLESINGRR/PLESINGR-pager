@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Nastavitelná frekvence</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+        .box { padding: 20px; border: 1px solid #ccc; display: inline-block; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <h2>Ovládání frekvence</h2>
+        <label for="freqInput">Zadej frekvenci (Hz): </label>
+        <input type="number" id="freqInput" value="1000" min="1" max="20000" step="1">
+        <button id="setBtn">Změnit</button>
+        <p>Aktuální frekvence: <strong id="currentFreq">1000</strong> Hz</p>
+    </div>
+
+    <script>
+        // Inicializace proměnné pro frekvenci, kterou může kdokoli měnit
+        let userFrequency = 1000;
+
+        // Definice aktuální role uživatele (můžeš si upravit podle své logiky, např. 'miembro')
+        let userRole = 'miembro'; 
+
+        const freqInput = document.getElementById('freqInput');
+        const setBtn = document.getElementById('setBtn');
+        const currentFreq = document.getElementById('currentFreq');
+
+        setBtn.addEventListener('click', () => {
+            // Ověření, zda má uživatel roli 'miembro' (nebo admin, pokud by bylo potřeba)
+            if (userRole !== 'miembro' && userRole !== 'admin') {
+                alert("Nemáš oprávnění měnit frekvenci!");
+                return;
+            }
+
+            const val = parseFloat(freqInput.value);
+            if (!isNaN(val) && val > 0) {
+                userFrequency = val;
+                currentFreq.textContent = userFrequency;
+                console.log("Frekvence změněna na: " + userFrequency + " Hz");
+                // Tady se propíše nová hodnota do tvé logiky
+            } else {
+                alert("Zadej platné číslo větší než 0.");
+            }
+        });
+    </script>
+
+</body>
+</html>
